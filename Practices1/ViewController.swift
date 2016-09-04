@@ -8,14 +8,16 @@
 
 import UIKit
 import Foundation
+import Alamofire
+import SwiftyJSON
 
-class ViewController: UIViewController, UITableViewDataSource{
+class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate{
 
     
     @IBOutlet weak var tableView: UITableView!
-    var totalChamps:Int = 2
-    var champNameIdentifier = [String]()
-    var champData:NSDictionary!
+    var totalChamps:Int = 0
+    var champName = [String]()
+    var champIDNames = [String: String]()
     
     
     override func viewDidLoad() {
@@ -23,6 +25,7 @@ class ViewController: UIViewController, UITableViewDataSource{
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         getFromLOLAPI()
+        tableView.delegate = self
         
         
         
@@ -35,45 +38,42 @@ class ViewController: UIViewController, UITableViewDataSource{
         })
     }
     
-
+    
+    func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
+        print(indexPath)
+    }
     //MARK: JSON
     func getFromLOLAPI(){
         
-        
-        let requestURL = NSURL(string: "http://ddragon.leagueoflegends.com/cdn/6.17.1/data/en_US/champion.json")!
-        let urlRequest = NSMutableURLRequest(URL: requestURL)
-        let session = NSURLSession.sharedSession()
-        let task = session.dataTaskWithRequest(urlRequest) {
-            (data, response, error) -> Void in
-            
-            let httpResponse = response as! NSHTTPURLResponse
-            let statusCode = httpResponse.statusCode
-            
-            
-            do{
-                
-                let json = try NSJSONSerialization.JSONObjectWithData(data!, options:.AllowFragments)
+        Alamofire.request(.GET, "http://ddragon.leagueoflegends.com/cdn/6.17.1/data/en_US/champion.json")
+            .responseJSON { response in
+               /* print(response.request)  // original URL request
+                print(response.response) // URL response
+                print(response.data)     // server data
+                print(response.result)   // result of response serialization*/
                 
                 
-                let basics = json as! NSDictionary
-                self.champData = basics["data"] as! NSDictionary
-                self.totalChamps = Int(self.champData.count)
                 
-                
-                for champName in self.champData.allKeys{
-                    print(champName)
+                if let json = response.result.value {
+                    //print("JSON: \(json)")
+                    let data = JSON(json)
+                    let names = data["data"]
+                    self.totalChamps = names.dictionaryValue.count
+                    for (key, subJson) in names {
+                        if let title = subJson["name"].string, id = subJson["id"].string{
+                            print("\(title), \(id)")
+                            self.champIDNames[id] = title
+                            self.champName.append(title)
+                        }
+                    }
                     
+                    self.do_table_refresh()
                     
-                    self.champNameIdentifier.append(champName as! String)
                 }
-                
-                self.do_table_refresh()
-                
-            }catch {
-                print("Error with Json: \(error) \(statusCode)")
-            }
         }
-        task.resume()
+        
+        
+        
         
         
         
@@ -83,11 +83,12 @@ class ViewController: UIViewController, UITableViewDataSource{
     // MARK: TableView DataSource
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let cell = UITableViewCell()
-        if !champNameIdentifier.isEmpty {
-            let champStringName = champNameIdentifier[indexPath.row]
+        
+        if !champName.isEmpty {
+            /*let champStringName = champName[indexPath.row]
             let champCompleteData = champData[champStringName]
-            let nameID = champCompleteData!["name"] as! String
-            cell.textLabel?.text = nameID
+            let nameID = champCompleteData!["name"] as! String*/
+            cell.textLabel?.text = champName[indexPath.row]
         }else{
             cell.textLabel?.text = "1"
         }
